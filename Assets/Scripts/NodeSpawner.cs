@@ -4,6 +4,8 @@ using System.Collections.Generic;
 using TMPro;
 using Unity.VisualScripting;
 using UnityEngine;
+using System.IO;
+using System.Linq;
 
 public class NodeSpawner : MonoBehaviour
 {
@@ -38,31 +40,79 @@ public class NodeSpawner : MonoBehaviour
     }
     
     
-    void SpawnNodes(int nodeCount, GameObject parentObj, Color nodeColor) {
+    void SpawnNodes(int nodeCount, GameObject parentObj, Color nodeColor, string[] nodeNames) {
         float startPosX = -(nodeCount / 2.0f) + 0.5f;
         for (int i = 0; i < nodeCount; i++) {
             // Set position based on parent's position
             Vector3 pos = new Vector3((parentObj.transform.position.x + startPosX + i), parentObj.transform.position.y, parentObj.transform.position.z);
 
             GameObject currentNode = Instantiate(nodePrefab, pos, parentObj.transform.rotation) as GameObject;
-            currentNode.name = "Node" + Convert.ToString(i + 1);
+            currentNode.name = "Node" + nodeNames[i];
 
             SpriteRenderer sprite = currentNode.GetComponent<SpriteRenderer>();
             sprite.color = nodeColor;
 
             TextMeshProUGUI nodeText = currentNode.GetComponentInChildren<TextMeshProUGUI>();
-            nodeText.text = Convert.ToString(i + 1);
+            nodeText.text = nodeNames[i];
 
             // Ensure that this node is a child of the parent object
             currentNode.transform.parent = parentObj.transform;
         }
     }
 
+    //parse the step and get the first and second set of the bipartite graph
+    (string[], string[]) parseInitializeStep(string step) {
+        // Remove "Initialize: " from the start of the string, then remove the parentheses
+        string sets = step.Replace("Initialize: ", "").Replace("(", "").Replace(")", "");
+
+        // Split the string into two parts on the space character
+        string[] splitSets = sets.Split(' ');
+
+        // Split each part on the "," character to get the individual numbers and letters
+        string[] firstSet = splitSets[0].Split(',');
+        string[] secondSet = splitSets[1].Split(',');
+
+        Debug.Log("First Set: " + firstSet);
+        Debug.Log("Second Set: " + secondSet);
+
+        return (firstSet, secondSet);
+    }
+
+    void animateStep(string step) {
+        //parse the step and animate it
+
+        
+        //the step is for intializing the bipartite graph
+        if (step.StartsWith("Initialize:")){
+            string[] firstSet;
+            string[] secondSet;
+
+            //parse the step and get the first and second set of the bipartite graph
+            (firstSet, secondSet) = parseInitializeStep(step);
+
+            Debug.Log("First Set: " + string.Join(",", firstSet));
+            Debug.Log("Second Set: " + string.Join(",", secondSet));
+            SpawnNodes(firstSet.Length, leftNodeParent, leftColor, firstSet);
+            SpawnNodes(secondSet.Length, rightNodeParent, rightColor, secondSet);
+        }
+
+        //TODO: add more steps
+    }
+
     // Start is called before the first frame update
     void Start()
     {
-        SpawnNodes(leftNodeCount, leftNodeParent, leftColor);
-        SpawnNodes(rightNodeCount, rightNodeParent, rightColor);
+        //get file for the animation steps from its path
+        string path = Path.Combine(Application.dataPath,"InputFiles", "InputText.txt");
+
+        //read the file
+        List<string> steps = File.ReadAllLines(path).ToList();
+
+        //iterate through the steps and animate them
+        foreach (string step in steps) {
+            animateStep(step);
+        }
+
         FitOnScreen();
     }
 
