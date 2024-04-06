@@ -17,8 +17,8 @@ Update_match: (2,D), (3,C)
 Disregard_vertices: (2,A) (2,C) (2,E) (3,A) (4,C) (5,C) (4,D)
 End Phase 2
 Begin Phase 3
-Add_path: (5,C) (3,C) (3,A) (1,A) (1,B) (4,B) (5,E)
-Update_Matching: (1,B) (3,A) (4,E) (5,C)
-Disregard_verticies: (1,A) (2,A) (3,C) (3,E) (4,C) (5,B) (5,C) (5,D)
+Add_path: (5,C) (3,C) (3,A) (1,A) (1,B) (4,B) (4,E)
+Update_match: (1,B) (3,A) (4,E) (5,C)
+Disregard_vertices: (1,A) (2,A) (2,C) (2,E) (3,C) (4,B) (4,C) (4,D)
 End Phase 3
 Finish
