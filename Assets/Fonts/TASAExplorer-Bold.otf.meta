@@ -1,0 +1,23 @@
+fileFormatVersion: 2
+guid: c398236730527e24888e8c18f7900442
+TrueTypeFontImporter:
+  externalObjects: {}
+  serializedVersion: 4
+  fontSize: 16
+  forceTextureCase: -2
+  characterSpacing: 0
+  characterPadding: 1
+  includeFontData: 1
+  fontNames:
+  - TASA Explorer
+  fallbackFontReferences:
+  - {fileID: 12800000, guid: f2209a85f9de3204189718779d1af09a, type: 3}
+  - {fileID: 12800000, guid: b0da9db11d5526149bc79928b9835eb1, type: 3}
+  customCharacters: 
+  fontRenderingMode: 0
+  ascentCalculationMode: 1
+  useLegacyBoundsCalculation: 0
+  shouldRoundAdvanceValue: 1
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

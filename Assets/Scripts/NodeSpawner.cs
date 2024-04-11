@@ -7,6 +7,7 @@ using UnityEngine;
 using System.IO;
 using System.Linq;
 
+
 public class NodeSpawner : MonoBehaviour
 {
     public GameObject leftNodeParent;
@@ -17,9 +18,11 @@ public class NodeSpawner : MonoBehaviour
     // Amount of time between steps
     public float stepTimeDuration = 1.0f;
     // Amount of time it takes for edge color to change from current color to new color
-    public float colorChangeDuration = 0.5f;
+    public float edgeColorChangeDuration = 0.5f;
+    public float nodeHighlightDuration = 0.5f;
     TextMeshProUGUI stepText;
     float time = 0;
+    Dictionary<string, GameObject> nodes;
 
 
     // Grabbed from https://www.youtube.com/watch?v=4URtDoKPu7M
@@ -60,6 +63,7 @@ public class NodeSpawner : MonoBehaviour
 
             // Ensure that this node is a child of the parent object
             currentNode.transform.parent = parentObj.transform;
+            nodes.Add(currentNode.name, currentNode);
         }
     }
 
@@ -90,8 +94,9 @@ public class NodeSpawner : MonoBehaviour
 
             Debug.Log("Adding edgees" + edge.Item1 + " " + edge.Item2);
             // Find nodes in pair
-            var node1 = GameObject.Find("Node" + edge.Item1);
-            var node2 = GameObject.Find("Node" + edge.Item2);
+            //var node1 = GameObject.Find("Node" + edge.Item1);
+            GameObject node1 = nodes["Node" + edge.Item1];
+            GameObject node2 = nodes["Node" + edge.Item2];
 
             var edgeObject = new GameObject("Edge" + edge.Item1 + "_" + edge.Item2);
             var lineRenderer = edgeObject.AddComponent<LineRenderer>();
@@ -136,15 +141,19 @@ public class NodeSpawner : MonoBehaviour
             for (int i = 0; i < edges.Count; i++) {
                 var edge = edges[i];
                 Color color = i % 2 == 0 ? Color.green : Color.black;
-                StartCoroutine(ChangeEdgeColorWaiter(time, "Edge" + edge.Item1 + "_" + edge.Item2, Color.green, step));
+                StartCoroutine(ChangeEdgeColorWaiter(time, edge, Color.green, step));
+                StartCoroutine(HighlightNodeWaiter(time, edge.Item1));
+                StartCoroutine(HighlightNodeWaiter(time, edge.Item2));
             }
             // Animate step text
             ///StartCoroutine(ChangeStepText(time, step));
-        } else if (step.StartsWith("Update_match:")){
+        } else if (step.StartsWith("Update_match")){
             List<(string, string)> edges = ParseStep(step);
             time = time + stepTimeDuration;
             foreach (var edge in edges) {
-                StartCoroutine(ChangeEdgeColorWaiter(time, "Edge" + edge.Item1 + "_" + edge.Item2, Color.yellow, step));
+                StartCoroutine(ChangeEdgeColorWaiter(time, edge, Color.yellow, step));
+                StartCoroutine(HighlightNodeWaiter(time, edge.Item1));
+                StartCoroutine(HighlightNodeWaiter(time, edge.Item2));
             }
             // Animate step text
             //StartCoroutine(ChangeStepText(time, step));
@@ -152,7 +161,9 @@ public class NodeSpawner : MonoBehaviour
             List<(string, string)> edges = ParseStep(step);
             time = time + stepTimeDuration;
             foreach (var edge in edges) {
-                StartCoroutine(ChangeEdgeColorWaiter(time, "Edge" + edge.Item1 + "_" + edge.Item2, Color.grey, step));
+                StartCoroutine(ChangeEdgeColorWaiter(time, edge, Color.grey, step));
+                StartCoroutine(HighlightNodeWaiter(time, edge.Item1));
+                StartCoroutine(HighlightNodeWaiter(time, edge.Item2));
             }
             // Animate step text
             ///StartCoroutine(ChangeStepText(time, step));
@@ -161,11 +172,11 @@ public class NodeSpawner : MonoBehaviour
         //TODO: add more steps
     }
 
-    IEnumerator LerpColor(Material material, Color startColor, Color endColor)
+    IEnumerator LerpColor(Material material, Color startColor, Color endColor, float duration)
     {
         float smoothness = 0.02f;
         float progress = 0; //This float will serve as the 3rd parameter of the lerp function.
-        float increment = smoothness/colorChangeDuration; //The amount of change to apply.
+        float increment = smoothness/duration; //The amount of change to apply.
 
         while(progress < 1)
         {
@@ -173,10 +184,29 @@ public class NodeSpawner : MonoBehaviour
             progress += increment;
             yield return new WaitForSeconds(smoothness);
         }
+        material.color = endColor;
     }
 
-    void ChangeEdgeColor(string edgeName, Color newColor) {
+    IEnumerator LerpSpriteColor(SpriteRenderer spriteRenderer, Color startColor, Color endColor, float duration)
+    {
+        Debug.Log("changing sprite color!");
+        float smoothness = 0.02f;
+        float progress = 0; //This float will serve as the 3rd parameter of the lerp function.
+        float increment = smoothness/duration; //The amount of change to apply.
+
+        while(progress < 1)
+        {
+            spriteRenderer.color = Color.Lerp(startColor, endColor, progress);
+            progress += increment;
+            yield return new WaitForSeconds(smoothness);
+        }
+        spriteRenderer.color = endColor;
+    }
+
+    void ChangeEdgeColor((string, string) edge, Color newColor) {
         
+        string edgeName = "Edge" + edge.Item1 + "_" + edge.Item2;
+        // Highlight Node{Item1} and Node{Item2} by briefly changing their colors to white and then back to their original color 
 
         // find the edge
         var edgeObject = GameObject.Find(edgeName);
@@ -190,14 +220,29 @@ public class NodeSpawner : MonoBehaviour
         Color startColor = lineRenderer.material.color;
         // Change the color of the edge
         //lineRenderer.material.color = newColor;
-        StartCoroutine(LerpColor(lineRenderer.material, startColor, newColor));
+        StartCoroutine(LerpColor(lineRenderer.material, startColor, newColor, edgeColorChangeDuration));
     }
 
-    IEnumerator ChangeEdgeColorWaiter(float waitTime, string edgeName, Color newColor, string newText) {
+    IEnumerator ChangeEdgeColorWaiter(float waitTime, (string, string) edge, Color newColor, string newText) {
         // wait for the time
         yield return new WaitForSeconds(waitTime);
         stepText.text = newText;
-        ChangeEdgeColor(edgeName, newColor);
+        ChangeEdgeColor(edge, newColor);
+    }
+
+    IEnumerator HighlightNode(string node) {
+        string nodeName = "Node" + node;
+        GameObject nodeObject = nodes[nodeName];
+        var spriteRenderer = nodeObject.GetComponent<SpriteRenderer>();
+        Color startColor = spriteRenderer.color;
+        StartCoroutine(LerpSpriteColor(spriteRenderer, startColor, Color.white, nodeHighlightDuration / 2.0f));
+        yield return new WaitForSeconds(nodeHighlightDuration / 2.0f);
+        StartCoroutine(LerpSpriteColor(spriteRenderer, Color.white, startColor, nodeHighlightDuration / 2.0f));
+    }
+
+    IEnumerator HighlightNodeWaiter(float waitTime, string node) {
+        yield return new WaitForSeconds(waitTime);
+        StartCoroutine(HighlightNode(node));
     }
 
     List<(string, string)> ParseStep(string step) {
@@ -225,15 +270,18 @@ public class NodeSpawner : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
+        nodes = new Dictionary<string, GameObject>();
         //get file for the animation steps from its path
-        string path = Path.Combine(Application.dataPath,"InputFiles", "InputText.txt");
-
+        //string path = Path.Combine(Application.dataPath,"InputFiles", "Input2.txt");
+        string path = FilePathClass.filePath;
+        Debug.Log("path: " + path); 
         //read the file
         List<string> steps = File.ReadAllLines(path).ToList();
         GameObject stepObj = GameObject.Find("StepText");
         stepText = stepObj.GetComponent<TextMeshProUGUI>();
 
-        stepText.text = "hello world! here is how you set the text";
+        // This is how you change the step text in the top left
+        stepText.text = "Begin animation";
 
         //iterate through the steps and animate them
         foreach (string step in steps) {
