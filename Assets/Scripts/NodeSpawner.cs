@@ -43,6 +43,9 @@ public class NodeSpawner : MonoBehaviour
         float diagonal = Mathf.Sqrt((boundSize.x * boundSize.x) + (boundSize.y * boundSize.y) + (boundSize.z * boundSize.z));
         Camera.main.orthographicSize = (diagonal / 2.0f) / 1.5f;
         transform.position = bound.center;
+        float extraRoom = 0.5f;
+        Camera.main.orthographicSize = ((diagonal / 2.0f) / 1.5f) + extraRoom;
+        Camera.main.transform.position = new Vector3(Camera.main.transform.position.x, Camera.main.transform.position.y + extraRoom, Camera.main.transform.position.z);
     }
     
     
@@ -92,7 +95,7 @@ public class NodeSpawner : MonoBehaviour
 
         foreach (var edge in edges) {
 
-            Debug.Log("Adding edgees" + edge.Item1 + " " + edge.Item2);
+            Debug.Log("Adding edges" + edge.Item1 + " " + edge.Item2);
             // Find nodes in pair
             //var node1 = GameObject.Find("Node" + edge.Item1);
             GameObject node1 = nodes["Node" + edge.Item1];
@@ -114,7 +117,6 @@ public class NodeSpawner : MonoBehaviour
 
 
     void animateStep(string step) {
-        //parse the step and animate it
         
         //the step is for intializing the bipartite graph
         if (step.StartsWith("Initialize:")){
@@ -129,11 +131,15 @@ public class NodeSpawner : MonoBehaviour
             SpawnNodes(firstSet.Length, leftNodeParent, leftColor, firstSet);
             SpawnNodes(secondSet.Length, rightNodeParent, rightColor, secondSet);
             FitOnScreen();
+            stepText.text = initializeText(firstSet, secondSet);
+            Debug.Log("Step text: " + stepText.text);
         } 
         else if (step.StartsWith("Add_edge:")) {
             Debug.Log("Adding edges");
             List<(string, string)> edges = ParseStep(step);
             AddEdges(edges);
+            stepText.text += string.Join(" ", addEdgeText(edges));
+            StartCoroutine(StartWaiter());
         }
         else if (step.StartsWith("Add_path:")) {
             List<(string, string)> edges = ParseStep(step);
@@ -141,35 +147,28 @@ public class NodeSpawner : MonoBehaviour
             for (int i = 0; i < edges.Count; i++) {
                 var edge = edges[i];
                 Color color = i % 2 == 0 ? Color.green : Color.black;
-                StartCoroutine(ChangeEdgeColorWaiter(time, edge, Color.green, step));
+                StartCoroutine(ChangeEdgeColorWaiter(time, edge, Color.green, augmentedPathText(edges)));
                 StartCoroutine(HighlightNodeWaiter(time, edge.Item1));
                 StartCoroutine(HighlightNodeWaiter(time, edge.Item2));
             }
-            // Animate step text
-            ///StartCoroutine(ChangeStepText(time, step));
         } else if (step.StartsWith("Update_match")){
             List<(string, string)> edges = ParseStep(step);
             time = time + stepTimeDuration;
             foreach (var edge in edges) {
-                StartCoroutine(ChangeEdgeColorWaiter(time, edge, Color.yellow, step));
+                StartCoroutine(ChangeEdgeColorWaiter(time, edge, Color.yellow, matchText(edges)));
                 StartCoroutine(HighlightNodeWaiter(time, edge.Item1));
                 StartCoroutine(HighlightNodeWaiter(time, edge.Item2));
             }
-            // Animate step text
-            //StartCoroutine(ChangeStepText(time, step));
         } else if (step.StartsWith("Disregard_vertices:")){
             List<(string, string)> edges = ParseStep(step);
             time = time + stepTimeDuration;
             foreach (var edge in edges) {
-                StartCoroutine(ChangeEdgeColorWaiter(time, edge, Color.grey, step));
+                StartCoroutine(ChangeEdgeColorWaiter(time, edge, Color.grey, disregardVerticesText(edges)));
                 StartCoroutine(HighlightNodeWaiter(time, edge.Item1));
                 StartCoroutine(HighlightNodeWaiter(time, edge.Item2));
             }
-            // Animate step text
-            ///StartCoroutine(ChangeStepText(time, step));
+            
         }
-
-        //TODO: add more steps
     }
 
     IEnumerator LerpColor(Material material, Color startColor, Color endColor, float duration)
@@ -223,6 +222,17 @@ public class NodeSpawner : MonoBehaviour
         StartCoroutine(LerpColor(lineRenderer.material, startColor, newColor, edgeColorChangeDuration));
     }
 
+    IEnumerator StartWaiter(){
+        time = time + 10;
+        yield return new WaitForSeconds(time);
+    }
+
+    IEnumerator ChangeTextWaiter(float waitTime, string newText) {
+        time = time + waitTime;
+        yield return new WaitForSeconds(time);
+        stepText.text = newText;
+    }
+
     IEnumerator ChangeEdgeColorWaiter(float waitTime, (string, string) edge, Color newColor, string newText) {
         // wait for the time
         yield return new WaitForSeconds(waitTime);
@@ -267,21 +277,78 @@ public class NodeSpawner : MonoBehaviour
         return parsedPairs;
     }
 
+    string initializeText(string[] firstSet, string[] secondSet) {
+        string text = "Set up the bipartite graph with the left verticies (";
+        text += string.Join(",", firstSet) + ") and the right verticies (";
+        text += string.Join(",", secondSet) + ") and create an empty matching. ";
+
+        return text;
+    }
+
+    string addEdgeText(List<(string, string)> edges) {
+        string text = "Add edges between ";
+
+        for (int i = 0; i < edges.Count; i++) {
+            text += "(" + edges[i].Item1 + "  , " + edges[i].Item2 + ")";
+            if (i < edges.Count - 1) {
+                text += ", ";
+            }
+        }
+        return text;
+    }
+
+    string augmentedPathText(List<(string, string)> edges) {
+        string text = "Found an augmented path from ";
+
+        for (int i = 0; i < edges.Count; i++) {
+            text += "Node " + edges[i].Item1 + " to Node " + edges[i].Item2;
+            if (i < edges.Count - 1) {
+                text += ", ";
+            }
+        }
+
+        return text;
+    }
+
+    string matchText(List<(string, string)> edges) {
+        string text = "Found match(es): ";
+
+        for (int i = 0; i < edges.Count; i++) {
+            text += "Node " + edges[i].Item1 + " and Node " + edges[i].Item2;
+            if (i < edges.Count - 1) {
+                text += ", ";
+            }
+        }
+
+        return text;
+    }
+
+    string disregardVerticesText(List<(string, string)> edges) {
+        string text = "Ignore edges between ";
+
+        for (int i = 0; i < edges.Count; i++) {
+            text += "Node " + edges[i].Item1 + " and Node " + edges[i].Item2;
+            if (i < edges.Count - 1) {
+                text += ", ";
+            }
+        }
+
+        return text;
+    }
+
     // Start is called before the first frame update
     void Start()
     {
         nodes = new Dictionary<string, GameObject>();
         //get file for the animation steps from its path
-        //string path = Path.Combine(Application.dataPath,"InputFiles", "Input2.txt");
-        string path = FilePathClass.filePath;
+        string path = Path.Combine(Application.dataPath,"InputFiles", "InputText.txt");
+        //string path = FilePathClass.filePath;
         Debug.Log("path: " + path); 
         //read the file
         List<string> steps = File.ReadAllLines(path).ToList();
         GameObject stepObj = GameObject.Find("StepText");
         stepText = stepObj.GetComponent<TextMeshProUGUI>();
 
-        // This is how you change the step text in the top left
-        stepText.text = "Begin animation";
 
         //iterate through the steps and animate them
         foreach (string step in steps) {
@@ -289,6 +356,7 @@ public class NodeSpawner : MonoBehaviour
             //stepText.text = step;
             animateStep(step);
         }
+        StartCoroutine(ChangeTextWaiter(time, "Found final matching!"));
     }
 
     // Update is called once per frame
