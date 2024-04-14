@@ -16,7 +16,7 @@ public class NodeSpawner : MonoBehaviour
     public Color leftColor = Color.red;
     public Color rightColor = Color.blue;
     // Amount of time between steps
-    public float stepTimeDuration = 1.0f;
+    public float stepTimeDuration = 12.0f;
     // Amount of time it takes for edge color to change from current color to new color
     public float edgeColorChangeDuration = 0.5f;
     public float nodeHighlightDuration = 0.5f;
@@ -43,9 +43,7 @@ public class NodeSpawner : MonoBehaviour
         float diagonal = Mathf.Sqrt((boundSize.x * boundSize.x) + (boundSize.y * boundSize.y) + (boundSize.z * boundSize.z));
         Camera.main.orthographicSize = (diagonal / 2.0f) / 1.5f;
         transform.position = bound.center;
-        float extraRoom = 0.5f;
-        Camera.main.orthographicSize = ((diagonal / 2.0f) / 1.5f) + extraRoom;
-        Camera.main.transform.position = new Vector3(Camera.main.transform.position.x, Camera.main.transform.position.y + extraRoom, Camera.main.transform.position.z);
+        Camera.main.transform.position = new Vector3(Camera.main.transform.position.x, Camera.main.transform.position.y, Camera.main.transform.position.z);
     }
     
     
@@ -146,8 +144,8 @@ public class NodeSpawner : MonoBehaviour
             time = time + stepTimeDuration;
             for (int i = 0; i < edges.Count; i++) {
                 var edge = edges[i];
-                Color color = i % 2 == 0 ? Color.green : Color.black;
-                StartCoroutine(ChangeEdgeColorWaiter(time, edge, Color.green, augmentedPathText(edges)));
+                Color color = i % 2 == 0 ? Color.green : Color.white;
+                StartCoroutine(ChangeEdgeColorWaiter(time, edge, color, augmentedPathText(edges) , 0.07f));
                 StartCoroutine(HighlightNodeWaiter(time, edge.Item1));
                 StartCoroutine(HighlightNodeWaiter(time, edge.Item2));
             }
@@ -155,7 +153,7 @@ public class NodeSpawner : MonoBehaviour
             List<(string, string)> edges = ParseStep(step);
             time = time + stepTimeDuration;
             foreach (var edge in edges) {
-                StartCoroutine(ChangeEdgeColorWaiter(time, edge, Color.yellow, matchText(edges)));
+                StartCoroutine(ChangeEdgeColorWaiter(time, edge, Color.yellow, matchText(edges), 0.07f));
                 StartCoroutine(HighlightNodeWaiter(time, edge.Item1));
                 StartCoroutine(HighlightNodeWaiter(time, edge.Item2));
             }
@@ -163,7 +161,7 @@ public class NodeSpawner : MonoBehaviour
             List<(string, string)> edges = ParseStep(step);
             time = time + stepTimeDuration;
             foreach (var edge in edges) {
-                StartCoroutine(ChangeEdgeColorWaiter(time, edge, Color.grey, disregardVerticesText(edges)));
+                StartCoroutine(ChangeEdgeColorWaiter(time, edge, Color.grey, disregardVerticesText(edges), 0.05f));
                 StartCoroutine(HighlightNodeWaiter(time, edge.Item1));
                 StartCoroutine(HighlightNodeWaiter(time, edge.Item2));
             }
@@ -202,7 +200,7 @@ public class NodeSpawner : MonoBehaviour
         spriteRenderer.color = endColor;
     }
 
-    void ChangeEdgeColor((string, string) edge, Color newColor) {
+    void ChangeEdgeColor((string, string) edge, Color newColor, float width) {
         
         string edgeName = "Edge" + edge.Item1 + "_" + edge.Item2;
         // Highlight Node{Item1} and Node{Item2} by briefly changing their colors to white and then back to their original color 
@@ -217,6 +215,8 @@ public class NodeSpawner : MonoBehaviour
 
         var lineRenderer = edgeObject.GetComponent<LineRenderer>();
         Color startColor = lineRenderer.material.color;
+        lineRenderer.startWidth = width;
+        lineRenderer.endWidth = width;
         // Change the color of the edge
         //lineRenderer.material.color = newColor;
         StartCoroutine(LerpColor(lineRenderer.material, startColor, newColor, edgeColorChangeDuration));
@@ -233,11 +233,11 @@ public class NodeSpawner : MonoBehaviour
         stepText.text = newText;
     }
 
-    IEnumerator ChangeEdgeColorWaiter(float waitTime, (string, string) edge, Color newColor, string newText) {
+    IEnumerator ChangeEdgeColorWaiter(float waitTime, (string, string) edge, Color newColor, string newText, float width) {
         // wait for the time
         yield return new WaitForSeconds(waitTime);
         stepText.text = newText;
-        ChangeEdgeColor(edge, newColor);
+        ChangeEdgeColor(edge, newColor, width);
     }
 
     IEnumerator HighlightNode(string node) {
@@ -341,8 +341,7 @@ public class NodeSpawner : MonoBehaviour
     {
         nodes = new Dictionary<string, GameObject>();
         //get file for the animation steps from its path
-        string path = Path.Combine(Application.dataPath,"InputFiles", "InputText.txt");
-        //string path = FilePathClass.filePath;
+        string path = FilePathClass.filePath;
         Debug.Log("path: " + path); 
         //read the file
         List<string> steps = File.ReadAllLines(path).ToList();
@@ -356,7 +355,7 @@ public class NodeSpawner : MonoBehaviour
             //stepText.text = step;
             animateStep(step);
         }
-        StartCoroutine(ChangeTextWaiter(time, "Found final matching!"));
+        StartCoroutine(ChangeTextWaiter(stepTimeDuration, "Found final matching!"));
     }
 
     // Update is called once per frame
