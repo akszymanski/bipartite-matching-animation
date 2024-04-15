@@ -7,27 +7,111 @@ using UnityEngine;
 using System.IO;
 using System.Linq;
 
-
+/// <summary>
+/// Class <c>NodeSpawner</c> is responsible for animating the steps of the Hopcroft-Karp algorithm on a bipartite graph.
+/// </summary>
 public class NodeSpawner : MonoBehaviour
 {
+    /// <summary>
+    /// The parent object for the left set of verticies
+    /// </summary>
     public GameObject leftNodeParent;
+
+    /// <summary>
+    /// The parent object for the right set of verticies
+    /// </summary>
     public GameObject rightNodeParent;
+
+    /// <summary>
+    /// The prefab for the nodes
+    /// </summary>
     public GameObject nodePrefab;
+
+    /// <summary>
+    /// The color of the left set of verticies
+    /// </summary>
     public Color leftColor = Color.red;
+
+    /// <summary>
+    /// The color of the right set of verticies
+    /// </summary>
     public Color rightColor = Color.blue;
+
+    /// <summary>
+    /// The text object for the steps
+    /// </summary>
+    public TextMeshProUGUI stepText;
+
+    /// <summary>
+    /// The text object for the current step
+    /// </summary>
+    public TextMeshProUGUI currentStep;
+
+    /// <summary>
+    /// Dictionary to store the nodes
+    /// </summary>
+    public Dictionary<string, GameObject> nodes;
+
     // Amount of time between steps
-    public float stepTimeDuration = 15.0f;
+    private float stepTimeDuration = 7.0f;
+
     // Amount of time it takes for edge color to change from current color to new color
-    public float edgeColorChangeDuration = 0.5f;
-    public float nodeHighlightDuration = 0.5f;
-    TextMeshProUGUI stepText;
-    TextMeshProUGUI currentStep;
-    float time = 0;
-    Dictionary<string, GameObject> nodes;
-    public int numberOfNodes = 0;
+    private float edgeColorChangeDuration = 0.5f;
 
+    // Amount of time it takes for node to be highlighted
+    private float nodeHighlightDuration = 0.5f;
+    
+    // Keeps track of the time for the animation
+    private float time = 0;
 
-    // Grabbed from https://www.youtube.com/watch?v=4URtDoKPu7M
+    // Keeps track of the number of nodes in the graph
+    private int numberOfNodes = 0;
+
+    /// <summary>
+    /// This method initializes the bipartite graph and animates the steps of 
+    /// the Hopcroft-Karp algorithm at the start.
+    /// </summary>
+    public void Start()
+    {
+        //initialize the dictionary to store the nodes
+        nodes = new Dictionary<string, GameObject>();
+
+        //get file for the animation steps from its path
+        string path = FilePathClass.filePath;
+        Debug.Log("path: " + path); 
+
+        //read the file
+        List<string> steps = File.ReadAllLines(path).ToList();
+
+        //get the text objects for the steps and current step
+        GameObject stepObj = GameObject.Find("StepText");
+        GameObject currentStepObj = GameObject.Find("Current Step");
+        stepText = stepObj.GetComponent<TextMeshProUGUI>();
+        currentStep = currentStepObj.GetComponent<TextMeshProUGUI>();
+
+        //set the vertical spacing between the sets of verticies
+        float verticalSpacing = 2.0f;
+
+        //set the font size for the text objects
+        stepText.fontSize = 24;
+        currentStep.fontSize = 24;
+
+        //set the positions of the parent objects for the left and right verticies
+        leftNodeParent.transform.position = new Vector3(leftNodeParent.transform.position.x, -verticalSpacing, leftNodeParent.transform.position.z);
+        rightNodeParent.transform.position = new Vector3(rightNodeParent.transform.position.x, verticalSpacing, rightNodeParent.transform.position.z);
+
+        //iterate through the steps and animate them
+        foreach (string step in steps) {
+            animateStep(step);
+        }
+    }
+
+    /// <summary>
+    /// This method gets the bounds of the gameObject node parent.
+    /// Inspired by https://www.youtube.com/watch?v=4URtDoKPu7M
+    /// </summary>
+    /// <param name="gameObject">The gameObject node parent.</param>
+    /// <returns></returns>
     private Bounds GetBounds(GameObject gameObject) {
         Bounds bound = new Bounds(gameObject.transform.position, Vector3.zero);
         var rList = gameObject.GetComponentsInChildren(typeof(Renderer));
@@ -37,25 +121,34 @@ public class NodeSpawner : MonoBehaviour
         return bound;
     }
     
-    // Also grabbed from https://www.youtube.com/watch?v=4URtDoKPu7Mprivate void FitOnScreen() {
+    /// <summary>
+    /// This method fits the graph on the screen.
+    /// Inspired by https://www.youtube.com/watch?v=4URtDoKPu7M
+    /// </summary>
     private void FitOnScreen() {
+        // Get the bounds of the left and right node parents
         Bounds bound = GetBounds(leftNodeParent);
         bound.Encapsulate(GetBounds(rightNodeParent));
         Vector3 boundSize = bound.size;
 
-        if (numberOfNodes < 15){
+        // If there are less than 6 nodes, set the camera to orthographic size to fit the graph
+        if (numberOfNodes < 6){
             float diagonal = Mathf.Sqrt((boundSize.x * boundSize.x) + (boundSize.y * boundSize.y) + (boundSize.z * boundSize.z));
-            
-            // Increase the orthographic size to give more room on the top and bottom
-            Camera.main.orthographicSize = (diagonal / 2.0f) / 1.2f;
-            
+            Camera.main.orthographicSize = (diagonal / 2.0f);
             transform.position = bound.center;
             Camera.main.transform.position = new Vector3(Camera.main.transform.position.x, Camera.main.transform.position.y, Camera.main.transform.position.z);
-        } else {
+        }
+        // If there are less than 15 nodes, set the camera to orthographic size to fit the graph
+        else if (numberOfNodes < 15){
+            float diagonal = Mathf.Sqrt((boundSize.x * boundSize.x) + (boundSize.y * boundSize.y) + (boundSize.z * boundSize.z));
+            Camera.main.orthographicSize = (diagonal / 2.0f) / 1.2f;
+            transform.position = bound.center;
+            Camera.main.transform.position = new Vector3(Camera.main.transform.position.x, Camera.main.transform.position.y, Camera.main.transform.position.z);
+        }
+        // If there are more than 15 nodes, set the camera to orthographic size to fit the graph 
+        else {
             // Calculate the aspect ratio of the screen
             float screenRatio = (float)Screen.width / Screen.height;
-            
-            // Set the camera's orthographic size based on the graph width and the screen ratio
             Camera.main.orthographicSize = boundSize.x / screenRatio / 2;
 
             // Calculate the desired y-position of the camera
@@ -67,7 +160,7 @@ public class NodeSpawner : MonoBehaviour
     }
     
     
-    void SpawnNodes(int nodeCount, GameObject parentObj, Color nodeColor, string[] nodeNames) {
+    private void SpawnNodes(int nodeCount, GameObject parentObj, Color nodeColor, string[] nodeNames) {
         float startPosX = -(nodeCount / 2.0f) + 0.5f;
         for (int i = 0; i < nodeCount; i++) {
             // Set position based on parent's position
@@ -151,14 +244,14 @@ public class NodeSpawner : MonoBehaviour
             SpawnNodes(firstSet.Length, leftNodeParent, leftColor, firstSet);
             SpawnNodes(secondSet.Length, rightNodeParent, rightColor, secondSet);
             FitOnScreen();
-            stepText.text = initializeText(firstSet, secondSet);
+            stepText.text = InitializeText(firstSet, secondSet);
             Debug.Log("Step text: " + stepText.text);
         } 
         else if (step.StartsWith("Add_edge:")) {
             Debug.Log("Adding edges");
             List<(string, string)> edges = ParseStep(step);
             AddEdges(edges);
-            stepText.text += string.Join(" ", addEdgeText(edges));
+            stepText.text += string.Join(" ", AddEdgeText(edges));
             StartCoroutine(StartWaiter());
         }
         else if (step.StartsWith("Add_path:")) {
@@ -167,7 +260,7 @@ public class NodeSpawner : MonoBehaviour
             for (int i = 0; i < edges.Count; i++) {
                 var edge = edges[i];
                 Color color = i % 2 == 0 ? Color.green : Color.white;
-                StartCoroutine(ChangeEdgeColorWaiter(time, edge, color, augmentedPathText(edges) , 0.08f));
+                StartCoroutine(ChangeEdgeColorWaiter(time, edge, color, AugmentingPathText(edges) , 0.08f));
                 StartCoroutine(HighlightNodeWaiter(time, edge.Item1));
                 StartCoroutine(HighlightNodeWaiter(time, edge.Item2));
             }
@@ -175,7 +268,7 @@ public class NodeSpawner : MonoBehaviour
             List<(string, string)> edges = ParseStep(step);
             time = time + stepTimeDuration;
             foreach (var edge in edges) {
-                StartCoroutine(ChangeEdgeColorWaiter(time, edge, Color.yellow, matchText(edges), 0.08f));
+                StartCoroutine(ChangeEdgeColorWaiter(time, edge, Color.yellow, MatchText(edges), 0.08f));
                 StartCoroutine(HighlightNodeWaiter(time, edge.Item1));
                 StartCoroutine(HighlightNodeWaiter(time, edge.Item2));
             }
@@ -186,7 +279,7 @@ public class NodeSpawner : MonoBehaviour
                 StartCoroutine(ChangeTextWaiter(time, "No edges to disregard."));
             } else {
                 foreach (var edge in edges) {
-                    StartCoroutine(ChangeEdgeColorWaiter(time, edge, Color.grey, disregardVerticesText(edges), 0.05f));
+                    StartCoroutine(ChangeEdgeColorWaiter(time, edge, Color.grey, DisregardVerticesText(edges), 0.05f));
                     StartCoroutine(HighlightNodeWaiter(time, edge.Item1));
                     StartCoroutine(HighlightNodeWaiter(time, edge.Item2));
                 }
@@ -196,6 +289,9 @@ public class NodeSpawner : MonoBehaviour
             string newText = "Begin Phase " + step.Substring(12);
             string currentStepText = "Phase " + step.Substring(12);
             StartCoroutine(ChangeText(newText, currentStepText, time));
+        } else if (step.StartsWith("Maximum matching:")){
+            time = time + stepTimeDuration;
+            StartCoroutine(ChangeText("Finished", "Maximum matching is " + step.Substring(17), time));
         }
     }
 
@@ -235,6 +331,7 @@ public class NodeSpawner : MonoBehaviour
         }
         spriteRenderer.color = endColor;
     }
+
         
     void ChangeEdgeColor((string, string) edge, Color newColor, float width) {
         string edgeName = "Edge" + edge.Item1 + "_" + edge.Item2;
@@ -320,7 +417,7 @@ public class NodeSpawner : MonoBehaviour
         return parsedPairs;
     }
 
-    string initializeText(string[] firstSet, string[] secondSet) {
+    string InitializeText(string[] firstSet, string[] secondSet) {
         string text = "Set up the bipartite graph with the left verticies (";
         text += string.Join(",", firstSet) + ") and the right verticies (";
         text += string.Join(",", secondSet) + ") and create an empty matching. ";
@@ -328,7 +425,7 @@ public class NodeSpawner : MonoBehaviour
         return text;
     }
 
-    string addEdgeText(List<(string, string)> edges) {
+    string AddEdgeText(List<(string, string)> edges) {
         string text = "Add edges between ";
 
         for (int i = 0; i < edges.Count; i++) {
@@ -348,7 +445,7 @@ public class NodeSpawner : MonoBehaviour
         return text;
     }
 
-    string augmentedPathText(List<(string, string)> edges) {
+    string AugmentingPathText(List<(string, string)> edges) {
         string text = "Found an augmenting path from ";
 
         for (int i = 0; i < edges.Count; i++) {
@@ -361,7 +458,7 @@ public class NodeSpawner : MonoBehaviour
         return text;
     }
 
-    string matchText(List<(string, string)> edges) {
+    string MatchText(List<(string, string)> edges) {
         string text = "Found match(es): ";
 
         for (int i = 0; i < edges.Count; i++) {
@@ -374,7 +471,7 @@ public class NodeSpawner : MonoBehaviour
         return text;
     }
 
-    string disregardVerticesText(List<(string, string)> edges) {
+    string DisregardVerticesText(List<(string, string)> edges) {
         string text = "Ignore edges between ";
 
         if (edges.Count == 0) {
@@ -389,48 +486,6 @@ public class NodeSpawner : MonoBehaviour
         }
     
         return text;
-    }
-
-    // Start is called before the first frame update
-    void Start()
-    {
-        nodes = new Dictionary<string, GameObject>();
-        //get file for the animation steps from its path
-        string path = FilePathClass.filePath;
-        Debug.Log("path: " + path); 
-        //read the file
-        List<string> steps = File.ReadAllLines(path).ToList();
-        GameObject stepObj = GameObject.Find("StepText");
-        stepText = stepObj.GetComponent<TextMeshProUGUI>();
-
-        GameObject currentStepObj = GameObject.Find("Current Step");
-        currentStep = currentStepObj.GetComponent<TextMeshProUGUI>();
-
-        float verticalSpacing = 2.0f;
-
-        if (numberOfNodes > 30){
-            verticalSpacing = 20000.0f;
-        }
-        stepText.fontSize = 24;
-        currentStep.fontSize = 24;
-
-        leftNodeParent.transform.position = new Vector3(leftNodeParent.transform.position.x, -verticalSpacing, leftNodeParent.transform.position.z);
-        rightNodeParent.transform.position = new Vector3(rightNodeParent.transform.position.x, verticalSpacing, rightNodeParent.transform.position.z);
-
-        //iterate through the steps and animate them
-        foreach (string step in steps) {
-            // Display current step on screen
-            //stepText.text = step;
-            animateStep(step);
-        }
-        time = time + stepTimeDuration;
-        StartCoroutine(ChangeTextWaiter(time, "Found final matching!"));
-    }
-
-    // Update is called once per frame
-    void Update()
-    {
-        
     }
 }
 
