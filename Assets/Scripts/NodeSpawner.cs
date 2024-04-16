@@ -16,13 +16,15 @@ public class NodeSpawner : MonoBehaviour
     public Color leftColor = Color.red;
     public Color rightColor = Color.blue;
     // Amount of time between steps
-    public float stepTimeDuration = 1.0f;
+    public float stepTimeDuration = 15.0f;
     // Amount of time it takes for edge color to change from current color to new color
     public float edgeColorChangeDuration = 0.5f;
     public float nodeHighlightDuration = 0.5f;
     TextMeshProUGUI stepText;
+    TextMeshProUGUI currentStep;
     float time = 0;
     Dictionary<string, GameObject> nodes;
+    public int numberOfNodes = 0;
 
 
     // Grabbed from https://www.youtube.com/watch?v=4URtDoKPu7M
@@ -35,17 +37,33 @@ public class NodeSpawner : MonoBehaviour
         return bound;
     }
     
-    // Also grabbed from https://www.youtube.com/watch?v=4URtDoKPu7M
+    // Also grabbed from https://www.youtube.com/watch?v=4URtDoKPu7Mprivate void FitOnScreen() {
     private void FitOnScreen() {
         Bounds bound = GetBounds(leftNodeParent);
         bound.Encapsulate(GetBounds(rightNodeParent));
         Vector3 boundSize = bound.size;
-        float diagonal = Mathf.Sqrt((boundSize.x * boundSize.x) + (boundSize.y * boundSize.y) + (boundSize.z * boundSize.z));
-        Camera.main.orthographicSize = (diagonal / 2.0f) / 1.5f;
-        transform.position = bound.center;
-        float extraRoom = 0.5f;
-        Camera.main.orthographicSize = ((diagonal / 2.0f) / 1.5f) + extraRoom;
-        Camera.main.transform.position = new Vector3(Camera.main.transform.position.x, Camera.main.transform.position.y + extraRoom, Camera.main.transform.position.z);
+
+        if (numberOfNodes < 15){
+            float diagonal = Mathf.Sqrt((boundSize.x * boundSize.x) + (boundSize.y * boundSize.y) + (boundSize.z * boundSize.z));
+            
+            // Increase the orthographic size to give more room on the top and bottom
+            Camera.main.orthographicSize = (diagonal / 2.0f) / 1.2f;
+            
+            transform.position = bound.center;
+            Camera.main.transform.position = new Vector3(Camera.main.transform.position.x, Camera.main.transform.position.y, Camera.main.transform.position.z);
+        } else {
+            // Calculate the aspect ratio of the screen
+            float screenRatio = (float)Screen.width / Screen.height;
+            
+            // Set the camera's orthographic size based on the graph width and the screen ratio
+            Camera.main.orthographicSize = boundSize.x / screenRatio / 2;
+
+            // Calculate the desired y-position of the camera
+            float centerY = bound.min.y + (boundSize.y * 3 / 5);
+
+            // Set the camera's y-position to the desired position
+            Camera.main.transform.position = new Vector3(Camera.main.transform.position.x, centerY, Camera.main.transform.position.z);
+        }
     }
     
     
@@ -126,6 +144,8 @@ public class NodeSpawner : MonoBehaviour
             //parse the step and get the first and second set of the bipartite graph
             (firstSet, secondSet) = parseInitializeStep(step);
 
+            numberOfNodes = firstSet.Length;
+
             Debug.Log("First Set: " + string.Join(",", firstSet));
             Debug.Log("Second Set: " + string.Join(",", secondSet));
             SpawnNodes(firstSet.Length, leftNodeParent, leftColor, firstSet);
@@ -146,8 +166,8 @@ public class NodeSpawner : MonoBehaviour
             time = time + stepTimeDuration;
             for (int i = 0; i < edges.Count; i++) {
                 var edge = edges[i];
-                Color color = i % 2 == 0 ? Color.green : Color.black;
-                StartCoroutine(ChangeEdgeColorWaiter(time, edge, Color.green, augmentedPathText(edges)));
+                Color color = i % 2 == 0 ? Color.green : Color.white;
+                StartCoroutine(ChangeEdgeColorWaiter(time, edge, color, augmentedPathText(edges) , 0.08f));
                 StartCoroutine(HighlightNodeWaiter(time, edge.Item1));
                 StartCoroutine(HighlightNodeWaiter(time, edge.Item2));
             }
@@ -155,20 +175,34 @@ public class NodeSpawner : MonoBehaviour
             List<(string, string)> edges = ParseStep(step);
             time = time + stepTimeDuration;
             foreach (var edge in edges) {
-                StartCoroutine(ChangeEdgeColorWaiter(time, edge, Color.yellow, matchText(edges)));
+                StartCoroutine(ChangeEdgeColorWaiter(time, edge, Color.yellow, matchText(edges), 0.08f));
                 StartCoroutine(HighlightNodeWaiter(time, edge.Item1));
                 StartCoroutine(HighlightNodeWaiter(time, edge.Item2));
             }
         } else if (step.StartsWith("Disregard_vertices:")){
             List<(string, string)> edges = ParseStep(step);
             time = time + stepTimeDuration;
-            foreach (var edge in edges) {
-                StartCoroutine(ChangeEdgeColorWaiter(time, edge, Color.grey, disregardVerticesText(edges)));
-                StartCoroutine(HighlightNodeWaiter(time, edge.Item1));
-                StartCoroutine(HighlightNodeWaiter(time, edge.Item2));
-            }
-            
+            if (edges.Count == 0) {
+                StartCoroutine(ChangeTextWaiter(time, "No edges to disregard."));
+            } else {
+                foreach (var edge in edges) {
+                    StartCoroutine(ChangeEdgeColorWaiter(time, edge, Color.grey, disregardVerticesText(edges), 0.05f));
+                    StartCoroutine(HighlightNodeWaiter(time, edge.Item1));
+                    StartCoroutine(HighlightNodeWaiter(time, edge.Item2));
+                }
+            }  
+        } else if (step.StartsWith("Begin_Phase")){
+            time = time + stepTimeDuration;
+            string newText = "Begin Phase " + step.Substring(12);
+            string currentStepText = "Phase " + step.Substring(12);
+            StartCoroutine(ChangeText(newText, currentStepText, time));
         }
+    }
+
+    IEnumerator ChangeText(string newText, string currentStepText, float waitTime) {
+        yield return new WaitForSeconds(waitTime);
+        stepText.text = newText;
+        currentStep.text = currentStepText;
     }
 
     IEnumerator LerpColor(Material material, Color startColor, Color endColor, float duration)
@@ -188,7 +222,7 @@ public class NodeSpawner : MonoBehaviour
 
     IEnumerator LerpSpriteColor(SpriteRenderer spriteRenderer, Color startColor, Color endColor, float duration)
     {
-        Debug.Log("changing sprite color!");
+        Debug.Log("changing sprite Begin_Phasecolor!");
         float smoothness = 0.02f;
         float progress = 0; //This float will serve as the 3rd parameter of the lerp function.
         float increment = smoothness/duration; //The amount of change to apply.
@@ -201,13 +235,11 @@ public class NodeSpawner : MonoBehaviour
         }
         spriteRenderer.color = endColor;
     }
-
-    void ChangeEdgeColor((string, string) edge, Color newColor) {
         
+    void ChangeEdgeColor((string, string) edge, Color newColor, float width) {
         string edgeName = "Edge" + edge.Item1 + "_" + edge.Item2;
-        // Highlight Node{Item1} and Node{Item2} by briefly changing their colors to white and then back to their original color 
 
-        // find the edge
+        // Find the edge
         var edgeObject = GameObject.Find(edgeName);
 
         if (edgeObject == null) {
@@ -216,28 +248,34 @@ public class NodeSpawner : MonoBehaviour
         }
 
         var lineRenderer = edgeObject.GetComponent<LineRenderer>();
+
+       // Bring the edge to the front of the hierarchy
+        edgeObject.transform.SetAsLastSibling();
+
         Color startColor = lineRenderer.material.color;
+
+        lineRenderer.startWidth = width;
+        lineRenderer.endWidth = width;
         // Change the color of the edge
-        //lineRenderer.material.color = newColor;
-        StartCoroutine(LerpColor(lineRenderer.material, startColor, newColor, edgeColorChangeDuration));
+        lineRenderer.material.color = newColor;
+        //StartCoroutine(LerpColor(lineRenderer.material, startColor, newColor, edgeColorChangeDuration));
     }
 
     IEnumerator StartWaiter(){
-        time = time + 10;
+        time = time + 5;
         yield return new WaitForSeconds(time);
     }
 
     IEnumerator ChangeTextWaiter(float waitTime, string newText) {
-        time = time + waitTime;
-        yield return new WaitForSeconds(time);
+        yield return new WaitForSeconds(waitTime);
         stepText.text = newText;
     }
 
-    IEnumerator ChangeEdgeColorWaiter(float waitTime, (string, string) edge, Color newColor, string newText) {
+    IEnumerator ChangeEdgeColorWaiter(float waitTime, (string, string) edge, Color newColor, string newText, float width) {
         // wait for the time
         yield return new WaitForSeconds(waitTime);
         stepText.text = newText;
-        ChangeEdgeColor(edge, newColor);
+        ChangeEdgeColor(edge, newColor, width);
     }
 
     IEnumerator HighlightNode(string node) {
@@ -256,6 +294,9 @@ public class NodeSpawner : MonoBehaviour
     }
 
     List<(string, string)> ParseStep(string step) {
+        if (!step.Contains("(") || !step.Contains(")")) {
+            return new List<(string, string)>();
+        }
 
         // Remove step before the semicolon
         int colonIndex = step.IndexOf(':');
@@ -268,7 +309,9 @@ public class NodeSpawner : MonoBehaviour
         // Create a list to hold the parsed pairs
         List<(string, string)> parsedPairs = new List<(string, string)>();
 
-        // Parse each pair
+        Debug.Log("Split pairs: " + splitPairs + " Length: " + splitPairs.Length);
+
+
         foreach (string pair in splitPairs) {
             string[] nodes = pair.Split(',');
             parsedPairs.Add((nodes[0], nodes[1]));
@@ -294,11 +337,19 @@ public class NodeSpawner : MonoBehaviour
                 text += ", ";
             }
         }
+
+        Debug.Log("Text length: " + text.Length);
+
+        int maxLength = 75; 
+        if (text.Length > maxLength) {
+            text = "Add the edges.";
+        }
+
         return text;
     }
 
     string augmentedPathText(List<(string, string)> edges) {
-        string text = "Found an augmented path from ";
+        string text = "Found an augmenting path from ";
 
         for (int i = 0; i < edges.Count; i++) {
             text += "Node " + edges[i].Item1 + " to Node " + edges[i].Item2;
@@ -326,13 +377,17 @@ public class NodeSpawner : MonoBehaviour
     string disregardVerticesText(List<(string, string)> edges) {
         string text = "Ignore edges between ";
 
-        for (int i = 0; i < edges.Count; i++) {
-            text += "Node " + edges[i].Item1 + " and Node " + edges[i].Item2;
-            if (i < edges.Count - 1) {
-                text += ", ";
+        if (edges.Count == 0) {
+            return "No edges to ignore.";
+        } else {
+            for (int i = 0; i < edges.Count; i++) {
+                text += "Node " + edges[i].Item1 + " and Node " + edges[i].Item2;
+                if (i < edges.Count - 1) {
+                    text += ", ";
+                }
             }
         }
-
+    
         return text;
     }
 
@@ -341,14 +396,26 @@ public class NodeSpawner : MonoBehaviour
     {
         nodes = new Dictionary<string, GameObject>();
         //get file for the animation steps from its path
-        string path = Path.Combine(Application.dataPath,"InputFiles", "InputText.txt");
-        //string path = FilePathClass.filePath;
+        string path = FilePathClass.filePath;
         Debug.Log("path: " + path); 
         //read the file
         List<string> steps = File.ReadAllLines(path).ToList();
         GameObject stepObj = GameObject.Find("StepText");
         stepText = stepObj.GetComponent<TextMeshProUGUI>();
 
+        GameObject currentStepObj = GameObject.Find("Current Step");
+        currentStep = currentStepObj.GetComponent<TextMeshProUGUI>();
+
+        float verticalSpacing = 2.0f;
+
+        if (numberOfNodes > 30){
+            verticalSpacing = 20000.0f;
+        }
+        stepText.fontSize = 24;
+        currentStep.fontSize = 24;
+
+        leftNodeParent.transform.position = new Vector3(leftNodeParent.transform.position.x, -verticalSpacing, leftNodeParent.transform.position.z);
+        rightNodeParent.transform.position = new Vector3(rightNodeParent.transform.position.x, verticalSpacing, rightNodeParent.transform.position.z);
 
         //iterate through the steps and animate them
         foreach (string step in steps) {
@@ -356,6 +423,7 @@ public class NodeSpawner : MonoBehaviour
             //stepText.text = step;
             animateStep(step);
         }
+        time = time + stepTimeDuration;
         StartCoroutine(ChangeTextWaiter(time, "Found final matching!"));
     }
 
@@ -364,5 +432,5 @@ public class NodeSpawner : MonoBehaviour
     {
         
     }
-    }
+}
 
