@@ -25,6 +25,7 @@ public class NodeSpawner : MonoBehaviour
     float time = 0;
     Dictionary<string, GameObject> nodes;
     public int numberOfNodes = 0;
+    int lowestSpriteOrder = -1;
 
 
     // Grabbed from https://www.youtube.com/watch?v=4URtDoKPu7M
@@ -167,7 +168,7 @@ public class NodeSpawner : MonoBehaviour
             for (int i = 0; i < edges.Count; i++) {
                 var edge = edges[i];
                 Color color = i % 2 == 0 ? Color.green : Color.white;
-                StartCoroutine(ChangeEdgeColorWaiter(time, edge, color, augmentedPathText(edges) , 0.08f));
+                StartCoroutine(ChangeEdgeColorWaiter(time, edge, color, augmentedPathText(edges) , 0.08f, -1));
                 StartCoroutine(HighlightNodeWaiter(time, edge.Item1));
                 StartCoroutine(HighlightNodeWaiter(time, edge.Item2));
             }
@@ -175,7 +176,7 @@ public class NodeSpawner : MonoBehaviour
             List<(string, string)> edges = ParseStep(step);
             time = time + stepTimeDuration;
             foreach (var edge in edges) {
-                StartCoroutine(ChangeEdgeColorWaiter(time, edge, Color.yellow, matchText(edges), 0.08f));
+                StartCoroutine(ChangeEdgeColorWaiter(time, edge, Color.yellow, matchText(edges), 0.08f, -1));
                 StartCoroutine(HighlightNodeWaiter(time, edge.Item1));
                 StartCoroutine(HighlightNodeWaiter(time, edge.Item2));
             }
@@ -186,7 +187,7 @@ public class NodeSpawner : MonoBehaviour
                 StartCoroutine(ChangeTextWaiter(time, "No edges to disregard."));
             } else {
                 foreach (var edge in edges) {
-                    StartCoroutine(ChangeEdgeColorWaiter(time, edge, Color.grey, disregardVerticesText(edges), 0.05f));
+                    StartCoroutine(ChangeEdgeColorWaiter(time, edge, Color.grey, disregardVerticesText(edges), 0.05f, --lowestSpriteOrder));
                     StartCoroutine(HighlightNodeWaiter(time, edge.Item1));
                     StartCoroutine(HighlightNodeWaiter(time, edge.Item2));
                 }
@@ -236,7 +237,7 @@ public class NodeSpawner : MonoBehaviour
         spriteRenderer.color = endColor;
     }
         
-    void ChangeEdgeColor((string, string) edge, Color newColor, float width) {
+    void ChangeEdgeColor((string, string) edge, Color newColor, float width, int spriteOrder) {
         string edgeName = "Edge" + edge.Item1 + "_" + edge.Item2;
 
         // Find the edge
@@ -248,6 +249,7 @@ public class NodeSpawner : MonoBehaviour
         }
 
         var lineRenderer = edgeObject.GetComponent<LineRenderer>();
+        lineRenderer.sortingOrder = spriteOrder;
 
        // Bring the edge to the front of the hierarchy
         edgeObject.transform.SetAsLastSibling();
@@ -257,8 +259,8 @@ public class NodeSpawner : MonoBehaviour
         lineRenderer.startWidth = width;
         lineRenderer.endWidth = width;
         // Change the color of the edge
-        lineRenderer.material.color = newColor;
-        //StartCoroutine(LerpColor(lineRenderer.material, startColor, newColor, edgeColorChangeDuration));
+        //lineRenderer.material.color = newColor;
+        StartCoroutine(LerpColor(lineRenderer.material, startColor, newColor, edgeColorChangeDuration));
     }
 
     IEnumerator StartWaiter(){
@@ -271,11 +273,11 @@ public class NodeSpawner : MonoBehaviour
         stepText.text = newText;
     }
 
-    IEnumerator ChangeEdgeColorWaiter(float waitTime, (string, string) edge, Color newColor, string newText, float width) {
+    IEnumerator ChangeEdgeColorWaiter(float waitTime, (string, string) edge, Color newColor, string newText, float width, int spriteOrder) {
         // wait for the time
         yield return new WaitForSeconds(waitTime);
         stepText.text = newText;
-        ChangeEdgeColor(edge, newColor, width);
+        ChangeEdgeColor(edge, newColor, width, spriteOrder);
     }
 
     IEnumerator HighlightNode(string node) {
@@ -394,6 +396,7 @@ public class NodeSpawner : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
+        leftNodeParent.SetActive(true);
         nodes = new Dictionary<string, GameObject>();
         //get file for the animation steps from its path
         string path = FilePathClass.filePath;
@@ -414,8 +417,8 @@ public class NodeSpawner : MonoBehaviour
         stepText.fontSize = 24;
         currentStep.fontSize = 24;
 
-        leftNodeParent.transform.position = new Vector3(leftNodeParent.transform.position.x, -verticalSpacing, leftNodeParent.transform.position.z);
-        rightNodeParent.transform.position = new Vector3(rightNodeParent.transform.position.x, verticalSpacing, rightNodeParent.transform.position.z);
+        leftNodeParent.transform.position = new Vector3(leftNodeParent.transform.position.x, verticalSpacing, leftNodeParent.transform.position.z);
+        rightNodeParent.transform.position = new Vector3(rightNodeParent.transform.position.x, -verticalSpacing, rightNodeParent.transform.position.z);
 
         //iterate through the steps and animate them
         foreach (string step in steps) {
