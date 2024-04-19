@@ -1,0 +1,51 @@
+Initialize: (W1,W2,W3,W4,W5,W6,W7,W8,W9,W10) (J1,J2,J3,J4,J5,J6,J7,J8,J9,J10)
+Add_edge: (W1,J1) (W1,J3) (W1,J4) (W1,J5) (W2,J1) (W2,J3) (W2,J5) (W3,J2) (W3,J4) (W4,J2) (W4,J3) (W4,J4) (W4,J6) (W4,J8) (W4,J9) (W5,J4) (W5,J6) (W5,J9) (W5,J10) (W6,J2) (W6,J6) (W6,J9) (W7,J1) (W7,J3) (W8,J4) (W8,J7) (W9,J1) (W9,J2) (W9,J3) (W9,J4) (W9,J7) (W9,J8) (W10,J2) 
+Begin_Phase 1
+Add_path: (W1,J1)
+Update_matching: (W1,J1)
+Disregard_vertices: (W1,J3) (W1,J4) (W1,J5) (W2,J1) (W7,J1) (W9,J1)
+Add_path: (W2,J3)
+Update_matching: (W2,J3)
+Disregard_vertices: (W2,J5) (W4,J3) (W7,J3) (W9,J3)
+Add_path: (W3,J2)
+Update_matching: (W3,J2)
+Disregard_vertices: (W3,J4) (W4,J2) (W6,J2) (W9,J2) (W10,J2)
+Add_path: (W4,J4)
+Update_matching: (W4,J4)
+Disregard_vertices: (W4,J6) (W4,J8) (W4,J9) (W5,J4) (W8,J4) (W9,J4)
+Add_path: (W5,J6)
+Update_matching: (W5,J6)
+Disregard_vertices: (W5,J9) (W5,J10) (W6,J6)
+Add_path: (W6,J9)
+Update_matching: (W6,J9)
+Disregard_vertices:
+Add_path: (W8,J7)
+Update_matching: (W8,J7)
+Disregard_vertices: (W9,J7)
+Add_path: (W9,J8)
+Update_matching: (W9,J8)
+Disregard_vertices:
+End_Phase 1
+Begin_Phase 2
+Add_path: (W7,J1) (W1,J1) (W1,J5)
+Update_matching: (W1,J5) (W7,J1)
+Disregard_vertices: (W1,J1) (W1,J3) (W1,J4) (W2,J1) (W2,J5) (W7,J3) (W9,J1)
+End_Phase 2
+Begin_Phase 3
+Add_path: (W10,J2) (W3,J2) (W3,J4) (W4,J4) (W4,J6) (W5,J6) (W5,J10)
+Update_matching: (W5,J10) (W4,J6) (W3,J4) (W10,J2)
+Disregard_vertices: (W1,J4) (W3,J2) (W4,J2) (W4,J3) (W4,J4) (W4,J8) (W4,J9) (W5,J4) (W5,J6) (W5,J9) (W6,J2) (W6,J6) (W8,J4) (W9,J2) (W9,J4)
+End_Phase 3
+Maximum matching: 10
+Matching Edges:
+Edge: (W1, J5)
+Edge: (W2, J3)
+Edge: (W3, J4)
+Edge: (W4, J6)
+Edge: (W5, J10)
+Edge: (W6, J9)
+Edge: (W7, J1)
+Edge: (W8, J7)
+Edge: (W9, J8)
+Edge: (W10, J2)
+

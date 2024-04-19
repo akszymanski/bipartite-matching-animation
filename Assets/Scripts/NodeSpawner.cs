@@ -67,12 +67,16 @@ public class NodeSpawner : MonoBehaviour
     // Keeps track of the number of nodes in the graph
     private int numberOfNodes = 0;
 
+    int lowestSpriteOrder = -1;
+
     /// <summary>
     /// This method initializes the bipartite graph and animates the steps of 
     /// the Hopcroft-Karp algorithm at the start.
     /// </summary>
     public void Start()
     {
+        int lowestSpriteOrder = -1;
+
         //initialize the dictionary to store the nodes
         nodes = new Dictionary<string, GameObject>();
 
@@ -97,8 +101,8 @@ public class NodeSpawner : MonoBehaviour
         currentStep.fontSize = 24;
 
         //set the positions of the parent objects for the left and right verticies
-        leftNodeParent.transform.position = new Vector3(leftNodeParent.transform.position.x, -verticalSpacing, leftNodeParent.transform.position.z);
-        rightNodeParent.transform.position = new Vector3(rightNodeParent.transform.position.x, verticalSpacing, rightNodeParent.transform.position.z);
+        leftNodeParent.transform.position = new Vector3(leftNodeParent.transform.position.x, verticalSpacing, leftNodeParent.transform.position.z);
+        rightNodeParent.transform.position = new Vector3(rightNodeParent.transform.position.x, -verticalSpacing, rightNodeParent.transform.position.z);
 
         //iterate through the steps and animate them
         foreach (string step in steps) {
@@ -260,7 +264,7 @@ public class NodeSpawner : MonoBehaviour
             for (int i = 0; i < edges.Count; i++) {
                 var edge = edges[i];
                 Color color = i % 2 == 0 ? Color.green : Color.white;
-                StartCoroutine(ChangeEdgeColorWaiter(time, edge, color, AugmentingPathText(edges) , 0.08f));
+                StartCoroutine(ChangeEdgeColorWaiter(time, edge, color, augmentedPathText(edges) , 0.08f, -1));
                 StartCoroutine(HighlightNodeWaiter(time, edge.Item1));
                 StartCoroutine(HighlightNodeWaiter(time, edge.Item2));
             }
@@ -268,7 +272,7 @@ public class NodeSpawner : MonoBehaviour
             List<(string, string)> edges = ParseStep(step);
             time = time + stepTimeDuration;
             foreach (var edge in edges) {
-                StartCoroutine(ChangeEdgeColorWaiter(time, edge, Color.yellow, MatchText(edges), 0.08f));
+                StartCoroutine(ChangeEdgeColorWaiter(time, edge, Color.yellow, matchText(edges), 0.08f, -1));
                 StartCoroutine(HighlightNodeWaiter(time, edge.Item1));
                 StartCoroutine(HighlightNodeWaiter(time, edge.Item2));
             }
@@ -279,7 +283,7 @@ public class NodeSpawner : MonoBehaviour
                 StartCoroutine(ChangeTextWaiter(time, "No edges to disregard."));
             } else {
                 foreach (var edge in edges) {
-                    StartCoroutine(ChangeEdgeColorWaiter(time, edge, Color.grey, DisregardVerticesText(edges), 0.05f));
+                    StartCoroutine(ChangeEdgeColorWaiter(time, edge, Color.grey, disregardVerticesText(edges), 0.05f, --lowestSpriteOrder));
                     StartCoroutine(HighlightNodeWaiter(time, edge.Item1));
                     StartCoroutine(HighlightNodeWaiter(time, edge.Item2));
                 }
@@ -333,7 +337,7 @@ public class NodeSpawner : MonoBehaviour
     }
 
         
-    void ChangeEdgeColor((string, string) edge, Color newColor, float width) {
+    void ChangeEdgeColor((string, string) edge, Color newColor, float width, int spriteOrder) {
         string edgeName = "Edge" + edge.Item1 + "_" + edge.Item2;
 
         // Find the edge
@@ -345,6 +349,7 @@ public class NodeSpawner : MonoBehaviour
         }
 
         var lineRenderer = edgeObject.GetComponent<LineRenderer>();
+        lineRenderer.sortingOrder = spriteOrder;
 
        // Bring the edge to the front of the hierarchy
         edgeObject.transform.SetAsLastSibling();
@@ -354,8 +359,8 @@ public class NodeSpawner : MonoBehaviour
         lineRenderer.startWidth = width;
         lineRenderer.endWidth = width;
         // Change the color of the edge
-        lineRenderer.material.color = newColor;
-        //StartCoroutine(LerpColor(lineRenderer.material, startColor, newColor, edgeColorChangeDuration));
+        //lineRenderer.material.color = newColor;
+        StartCoroutine(LerpColor(lineRenderer.material, startColor, newColor, edgeColorChangeDuration));
     }
 
     IEnumerator StartWaiter(){
@@ -368,11 +373,11 @@ public class NodeSpawner : MonoBehaviour
         stepText.text = newText;
     }
 
-    IEnumerator ChangeEdgeColorWaiter(float waitTime, (string, string) edge, Color newColor, string newText, float width) {
+    IEnumerator ChangeEdgeColorWaiter(float waitTime, (string, string) edge, Color newColor, string newText, float width, int spriteOrder) {
         // wait for the time
         yield return new WaitForSeconds(waitTime);
         stepText.text = newText;
-        ChangeEdgeColor(edge, newColor, width);
+        ChangeEdgeColor(edge, newColor, width, spriteOrder);
     }
 
     IEnumerator HighlightNode(string node) {
