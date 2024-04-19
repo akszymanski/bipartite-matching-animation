@@ -67,6 +67,7 @@ public class NodeSpawner : MonoBehaviour
     // Keeps track of the number of nodes in the graph
     private int numberOfNodes = 0;
 
+    // Keeps track of the lowest sprite order
     int lowestSpriteOrder = -1;
 
     /// <summary>
@@ -115,7 +116,7 @@ public class NodeSpawner : MonoBehaviour
     /// Inspired by https://www.youtube.com/watch?v=4URtDoKPu7M
     /// </summary>
     /// <param name="gameObject">The gameObject node parent.</param>
-    /// <returns></returns>
+    /// <returns>The bounds of the gameObject node parent.</returns>
     private Bounds GetBounds(GameObject gameObject) {
         Bounds bound = new Bounds(gameObject.transform.position, Vector3.zero);
         var rList = gameObject.GetComponentsInChildren(typeof(Renderer));
@@ -163,7 +164,13 @@ public class NodeSpawner : MonoBehaviour
         }
     }
     
-    
+    /// <summary>
+    /// This method spawns the nodes of the bipartite graph.
+    /// </summary>
+    /// <param name="nodeCount">The number of nodes in the set.</param>
+    /// <param name="parentObj">The parent object of the nodes.</param>
+    /// <param name="nodeColor">The color of the nodes.</param>
+    /// <param name="nodeNames">The names of the nodes.</param>
     private void SpawnNodes(int nodeCount, GameObject parentObj, Color nodeColor, string[] nodeNames) {
         float startPosX = -(nodeCount / 2.0f) + 0.5f;
         for (int i = 0; i < nodeCount; i++) {
@@ -185,7 +192,13 @@ public class NodeSpawner : MonoBehaviour
         }
     }
 
-    //parse the step and get the first and second set of the bipartite graph
+    /// <summary>
+    /// This method parses the Initialize step of the bipartite graph.
+    /// </summary>
+    /// <param name="step">The Initialize step of the bipartite graph.</param>
+    /// <returns>
+    /// A tuple containing the first and second set of the bipartite graph.
+    /// </returns>
     (string[], string[]) parseInitializeStep(string step) {
         // Remove "Initialize: " from the start of the string, then remove the parentheses
         string sets = step.Replace("Initialize: ", "").Replace("(", "").Replace(")", "");
@@ -193,7 +206,7 @@ public class NodeSpawner : MonoBehaviour
         // Split the string into two parts on the space
         string[] splitSets = sets.Split(' ');
 
-        // Split each part on the  comma
+        // Split each part on the comma
         string[] firstSet = splitSets[0].Split(',');
         string[] secondSet = splitSets[1].Split(',');
 
@@ -203,19 +216,23 @@ public class NodeSpawner : MonoBehaviour
         return (firstSet, secondSet);
     }
 
+    /// <summary>
+    /// This method adds the edges to the bipartite graph.
+    /// </summary>
+    /// <param name="edges">The edges to be added to the bipartite graph.</param>
     void AddEdges(List<(string, string)> edges) {
         // Create a new Material
         Material material = new Material(Shader.Find("Unlit/Color"));
         material.color = Color.white; // Set the color to white
 
+        // Iterate through the edges
         foreach (var edge in edges) {
-
             Debug.Log("Adding edges" + edge.Item1 + " " + edge.Item2);
             // Find nodes in pair
-            //var node1 = GameObject.Find("Node" + edge.Item1);
             GameObject node1 = nodes["Node" + edge.Item1];
             GameObject node2 = nodes["Node" + edge.Item2];
 
+            // Create a new GameObject for the edge
             var edgeObject = new GameObject("Edge" + edge.Item1 + "_" + edge.Item2);
             var lineRenderer = edgeObject.AddComponent<LineRenderer>();
 
@@ -225,12 +242,16 @@ public class NodeSpawner : MonoBehaviour
             lineRenderer.SetPosition(0, node1.transform.position);
             lineRenderer.SetPosition(1, node2.transform.position);
 
+            // Set the edge width
             lineRenderer.startWidth = 0.05f;
             lineRenderer.endWidth = 0.05f;
         }
     }
 
-
+    /// <summary>
+    /// This method animates the steps of the Hopcroft-Karp algorithm.
+    /// </summary>
+    /// <param name="step">The step to be animated.</param>
     void animateStep(string step) {
         
         //the step is for intializing the bipartite graph
@@ -245,12 +266,14 @@ public class NodeSpawner : MonoBehaviour
 
             Debug.Log("First Set: " + string.Join(",", firstSet));
             Debug.Log("Second Set: " + string.Join(",", secondSet));
+            //spawn the nodes of the bipartite graph
             SpawnNodes(firstSet.Length, leftNodeParent, leftColor, firstSet);
             SpawnNodes(secondSet.Length, rightNodeParent, rightColor, secondSet);
             FitOnScreen();
             stepText.text = InitializeText(firstSet, secondSet);
             Debug.Log("Step text: " + stepText.text);
         } 
+        //the step is for adding edges to the bipartite graph
         else if (step.StartsWith("Add_edge:")) {
             Debug.Log("Adding edges");
             List<(string, string)> edges = ParseStep(step);
@@ -258,6 +281,7 @@ public class NodeSpawner : MonoBehaviour
             stepText.text += string.Join(" ", AddEdgeText(edges));
             StartCoroutine(StartWaiter());
         }
+        //this step is to animate the augmenting path
         else if (step.StartsWith("Add_path:")) {
             List<(string, string)> edges = ParseStep(step);
             time = time + stepTimeDuration;
@@ -268,6 +292,7 @@ public class NodeSpawner : MonoBehaviour
                 StartCoroutine(HighlightNodeWaiter(time, edge.Item1));
                 StartCoroutine(HighlightNodeWaiter(time, edge.Item2));
             }
+        //this step is to animate the matching
         } else if (step.StartsWith("Update_match")){
             List<(string, string)> edges = ParseStep(step);
             time = time + stepTimeDuration;
@@ -276,6 +301,7 @@ public class NodeSpawner : MonoBehaviour
                 StartCoroutine(HighlightNodeWaiter(time, edge.Item1));
                 StartCoroutine(HighlightNodeWaiter(time, edge.Item2));
             }
+        //this step is to animate the disregarding of vertcies
         } else if (step.StartsWith("Disregard_vertices:")){
             List<(string, string)> edges = ParseStep(step);
             time = time + stepTimeDuration;
@@ -288,23 +314,40 @@ public class NodeSpawner : MonoBehaviour
                     StartCoroutine(HighlightNodeWaiter(time, edge.Item2));
                 }
             }  
+        //this step is to animate the beginning of a phase
         } else if (step.StartsWith("Begin_Phase")){
             time = time + stepTimeDuration;
             string newText = "Begin Phase " + step.Substring(12);
             string currentStepText = "Phase " + step.Substring(12);
             StartCoroutine(ChangeText(newText, currentStepText, time));
+        //this step is to animate the end of the algorithm
         } else if (step.StartsWith("Maximum matching:")){
             time = time + stepTimeDuration;
             StartCoroutine(ChangeText("Finished", "Maximum matching is " + step.Substring(17), time));
         }
     }
 
+    /// <summary>
+    /// This method changes the text of the step and current step text objects.
+    /// </summary>
+    /// <param name="newText">The new text for the step text object.</param>
+    /// <param name="currentStepText">The new text for the current step text object.</param>
+    /// <param name="waitTime">The amount of time to wait before changing the text.</param>
+    /// <returns>An IEnumerator object.</returns>
     IEnumerator ChangeText(string newText, string currentStepText, float waitTime) {
         yield return new WaitForSeconds(waitTime);
         stepText.text = newText;
         currentStep.text = currentStepText;
     }
 
+    /// <summary>
+    /// This method lerps the color of a material from startColor to endColor.
+    /// </summary>
+    /// <param name="material">The material to change the color of.</param>
+    /// <param name="startColor">The starting color of the material.</param>
+    /// <param name="endColor">The ending color of the material.</param>
+    /// <param name="duration">The duration of the lerp.</param>
+    /// <returns>An IEnumerator object.</returns>
     IEnumerator LerpColor(Material material, Color startColor, Color endColor, float duration)
     {
         float smoothness = 0.02f;
@@ -320,6 +363,14 @@ public class NodeSpawner : MonoBehaviour
         material.color = endColor;
     }
 
+    /// <summary>
+    /// This method lerps the color of a sprite renderer from startColor to endColor.
+    /// </summary>
+    /// <param name="spriteRenderer">The sprite renderer to change the color of.</param>
+    /// <param name="startColor">The starting color of the sprite renderer.</param>
+    /// <param name="endColor">The ending color of the sprite renderer.</param>
+    /// <param name="duration">The duration of the lerp.</param>
+    /// <returns>An IEnumerator object.</returns>
     IEnumerator LerpSpriteColor(SpriteRenderer spriteRenderer, Color startColor, Color endColor, float duration)
     {
         Debug.Log("changing sprite Begin_Phasecolor!");
@@ -336,7 +387,13 @@ public class NodeSpawner : MonoBehaviour
         spriteRenderer.color = endColor;
     }
 
-        
+    /// <summary>
+    /// This method changes the color of an edge.
+    /// </summary>
+    /// <param name="edge">The edge to change the color of.</param>
+    /// <param name="newColor">The new color of the edge.</param>
+    /// <param name="width">The width of the edge.</param>
+    /// <param name="spriteOrder">The order of the sprite.</param>
     void ChangeEdgeColor((string, string) edge, Color newColor, float width, int spriteOrder) {
         string edgeName = "Edge" + edge.Item1 + "_" + edge.Item2;
 
@@ -363,16 +420,36 @@ public class NodeSpawner : MonoBehaviour
         StartCoroutine(LerpColor(lineRenderer.material, startColor, newColor, edgeColorChangeDuration));
     }
 
+    /// <summary>
+    ///  This method waits for 5 seconds before starting the animation.
+    /// </summary>
+    /// <returns>An IEnumerator object</returns>
     IEnumerator StartWaiter(){
         time = time + 5;
         yield return new WaitForSeconds(time);
     }
 
+    /// <summary>
+    /// This method changes the text of the step text object after a certain amount of time.
+    /// </summary>
+    /// <param name="waitTime">The amount of time to wait before changing the text.</param>
+    /// <param name="newText">The new text for the step text object.</param>
+    /// <returns>An IEnumerator object.</returns>
     IEnumerator ChangeTextWaiter(float waitTime, string newText) {
         yield return new WaitForSeconds(waitTime);
         stepText.text = newText;
     }
 
+    /// <summary>
+    /// This method changes the color of an edge after a certain amount of time.
+    /// </summary>
+    /// <param name="waitTime">The amount of time to wait before changing the color of the edge.</param>
+    /// <param name="edge">The edge to change the color of.</param>
+    /// <param name="newColor">The new color of the edge.</param>
+    /// <param name="newText">The new text for the step text object.</param>
+    /// <param name="width">The width of the edge.</param>
+    /// <param name="spriteOrder">The order of the sprite.</param>
+    /// <returns>An IEnumerator object.</returns>
     IEnumerator ChangeEdgeColorWaiter(float waitTime, (string, string) edge, Color newColor, string newText, float width, int spriteOrder) {
         // wait for the time
         yield return new WaitForSeconds(waitTime);
@@ -380,6 +457,11 @@ public class NodeSpawner : MonoBehaviour
         ChangeEdgeColor(edge, newColor, width, spriteOrder);
     }
 
+    /// <summary>
+    /// This method highlights a node after a certain amount of time.
+    /// </summary>
+    /// <param name="node">The node to highlight.</param>
+    /// <returns>An IEnumerator object</returns>
     IEnumerator HighlightNode(string node) {
         string nodeName = "Node" + node;
         GameObject nodeObject = nodes[nodeName];
@@ -390,11 +472,22 @@ public class NodeSpawner : MonoBehaviour
         StartCoroutine(LerpSpriteColor(spriteRenderer, Color.white, startColor, nodeHighlightDuration / 2.0f));
     }
 
+    /// <summary>
+    /// This method highlights a node after a certain amount of time.
+    /// </summary>
+    /// <param name="waitTime">The amount of time to wait before highlighting the node</param>
+    /// <param name="node">The node to highlight</param>
+    /// <returns>An IEnumerator object</returns>
     IEnumerator HighlightNodeWaiter(float waitTime, string node) {
         yield return new WaitForSeconds(waitTime);
         StartCoroutine(HighlightNode(node));
     }
 
+    /// <summary>
+    /// This method parses the step string to get the pairs of nodes.
+    /// </summary>
+    /// <param name="step">The step string to parse.</param>
+    /// <returns>A list of pairs of nodes.</returns>
     List<(string, string)> ParseStep(string step) {
         if (!step.Contains("(") || !step.Contains(")")) {
             return new List<(string, string)>();
@@ -413,7 +506,7 @@ public class NodeSpawner : MonoBehaviour
 
         Debug.Log("Split pairs: " + splitPairs + " Length: " + splitPairs.Length);
 
-
+        // Split each pair into nodes
         foreach (string pair in splitPairs) {
             string[] nodes = pair.Split(',');
             parsedPairs.Add((nodes[0], nodes[1]));
@@ -422,6 +515,12 @@ public class NodeSpawner : MonoBehaviour
         return parsedPairs;
     }
 
+    /// <summary>
+    /// This method returns the text for the Initialize step.
+    /// </summary>
+    /// <param name="firstSet">The first set of verticies.</param>
+    /// <param name="secondSet">The second set of verticies.</param>
+    /// <returns>The string that is to be displayed in the Initialize step of the animation</returns>
     string InitializeText(string[] firstSet, string[] secondSet) {
         string text = "Set up the bipartite graph with the left verticies (";
         text += string.Join(",", firstSet) + ") and the right verticies (";
@@ -430,6 +529,11 @@ public class NodeSpawner : MonoBehaviour
         return text;
     }
 
+    /// <summary>
+    /// This method returns the text for the AddEdge step.
+    /// </summary>
+    /// <param name="edges">The edges to be added to the bipartite graph.</param>
+    /// <returns>The string that is to be displayed in the AddEdge step of the animation</returns>
     string AddEdgeText(List<(string, string)> edges) {
         string text = "Add edges between ";
 
@@ -450,6 +554,11 @@ public class NodeSpawner : MonoBehaviour
         return text;
     }
 
+    /// <summary>
+    /// This method returns the text for the AugmentingPath step.
+    /// </summary>
+    /// <param name="edges">The edges in the augmenting path.</param>
+    /// <returns>The string that is to be displayed in the AugmentingPath step of the animation</returns>
     string AugmentingPathText(List<(string, string)> edges) {
         string text = "Found an augmenting path from ";
 
@@ -463,9 +572,15 @@ public class NodeSpawner : MonoBehaviour
         return text;
     }
 
+    /// <summary>
+    /// This method returns the text for the MatchText step.
+    /// </summary>
+    /// <param name="edges">This list of edges that matches are found in.</param>
+    /// <returns>The string that is to be displayed in the MatchText step of the animation</returns>
     string MatchText(List<(string, string)> edges) {
         string text = "Found match(es): ";
 
+        // Generate the text for the matches
         for (int i = 0; i < edges.Count; i++) {
             text += "Node " + edges[i].Item1 + " and Node " + edges[i].Item2;
             if (i < edges.Count - 1) {
@@ -476,11 +591,18 @@ public class NodeSpawner : MonoBehaviour
         return text;
     }
 
+    /// <summary>
+    /// This method returns the text for the DisregardVertices step.
+    /// </summary>
+    /// <param name="edges">This list of edges between nodes that are to be disregarded</param>
+    /// <returns>The string that is to be displayed in the DisregardVertices step of the animation</returns>
     string DisregardVerticesText(List<(string, string)> edges) {
         string text = "Ignore edges between ";
 
+        // If there are no edges to disregard, return a different message
         if (edges.Count == 0) {
             return "No edges to ignore.";
+        // Otherwise, return the edges to disregard
         } else {
             for (int i = 0; i < edges.Count; i++) {
                 text += "Node " + edges[i].Item1 + " and Node " + edges[i].Item2;
