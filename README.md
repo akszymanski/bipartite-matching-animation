@@ -16,7 +16,7 @@ The animation is contained in four main files.
 
 ## Usage
 
-This program was tested on and can be ran in Unity 2022.3.6f1
+This program was tested on and can be ran in Unity 2022.3.6f1. This project cannot be built as a standalone app, and must be viewed from the Unity editor.
 
 To run in the Unity editor, use the following shortcute:
 
