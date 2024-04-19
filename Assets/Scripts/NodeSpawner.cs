@@ -288,7 +288,7 @@ public class NodeSpawner : MonoBehaviour
             for (int i = 0; i < edges.Count; i++) {
                 var edge = edges[i];
                 Color color = i % 2 == 0 ? Color.green : Color.white;
-                StartCoroutine(ChangeEdgeColorWaiter(time, edge, color, augmentedPathText(edges) , 0.08f, -1));
+                StartCoroutine(ChangeEdgeColorWaiter(time, edge, color, AugmentingPathText(edges) , 0.08f, -1));
                 StartCoroutine(HighlightNodeWaiter(time, edge.Item1));
                 StartCoroutine(HighlightNodeWaiter(time, edge.Item2));
             }
@@ -297,7 +297,7 @@ public class NodeSpawner : MonoBehaviour
             List<(string, string)> edges = ParseStep(step);
             time = time + stepTimeDuration;
             foreach (var edge in edges) {
-                StartCoroutine(ChangeEdgeColorWaiter(time, edge, Color.yellow, matchText(edges), 0.08f, -1));
+                StartCoroutine(ChangeEdgeColorWaiter(time, edge, Color.yellow, MatchText(edges), 0.08f, -1));
                 StartCoroutine(HighlightNodeWaiter(time, edge.Item1));
                 StartCoroutine(HighlightNodeWaiter(time, edge.Item2));
             }
@@ -309,7 +309,7 @@ public class NodeSpawner : MonoBehaviour
                 StartCoroutine(ChangeTextWaiter(time, "No edges to disregard."));
             } else {
                 foreach (var edge in edges) {
-                    StartCoroutine(ChangeEdgeColorWaiter(time, edge, Color.grey, disregardVerticesText(edges), 0.05f, --lowestSpriteOrder));
+                    StartCoroutine(ChangeEdgeColorWaiter(time, edge, Color.grey, DisregardVerticesText(edges), 0.05f, --lowestSpriteOrder));
                     StartCoroutine(HighlightNodeWaiter(time, edge.Item1));
                     StartCoroutine(HighlightNodeWaiter(time, edge.Item2));
                 }
