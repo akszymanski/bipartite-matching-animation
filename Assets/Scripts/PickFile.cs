@@ -8,6 +8,9 @@ using UnityEngine.UI;
 using UnityEngine.EventSystems;
 using UnityEngine.SceneManagement;
 
+/// <summary>
+/// Class <c>PickFile</c> is a class that opens a file dialog.
+/// </summary>
 public class PickFile : MonoBehaviour
 {
     public void OpenFileDialog() {
